@@ -81,141 +81,111 @@ export default function Home() {
   const [contracts, setContracts] =
     useState([]);
 
-  const [selected, setSelected] =
-    useState("");
-
-  const [note, setNote] =
-    useState("");
-
-  const [notes, setNotes] =
-    useState([]);
+  const [status, setStatus] =
+    useState("Ready");
 
   async function connectWallet() {
 
-    const accounts =
-      await window.ethereum.request({
+    try {
 
-        method:
-          "eth_requestAccounts"
-      });
+      if(!window.ethereum) {
 
-    setWallet(accounts[0]);
+        alert(
+          "Install Rabby"
+        );
 
-    const saved =
-      JSON.parse(
+        return;
+      }
 
-        localStorage.getItem(
-          "contracts"
-        ) || "[]"
+      const accounts =
+        await window.ethereum.request({
+
+          method:
+            "eth_requestAccounts"
+        });
+
+      setWallet(accounts[0]);
+
+      setStatus(
+        "Wallet Connected"
       );
 
-    setContracts(saved);
+    } catch(err) {
+
+      console.log(err);
+
+      setStatus(
+        "Wallet Connection Failed"
+      );
+    }
   }
 
   async function deployContract() {
 
-    const provider =
-      new ethers.BrowserProvider(
-        window.ethereum
+    try {
+
+      setStatus(
+        "Deploying..."
       );
 
-    const signer =
-      await provider.getSigner();
+      const provider =
+        new ethers.BrowserProvider(
+          window.ethereum
+        );
 
-    const factory =
-      new ethers.ContractFactory(
+      const signer =
+        await provider.getSigner();
 
-        abi,
+      const factory =
+        new ethers.ContractFactory(
 
-        bytecode,
+          abi,
 
-        signer
+          bytecode,
+
+          signer
+        );
+
+      const contract =
+        await factory.deploy();
+
+      setStatus(
+        "Waiting for confirmation..."
       );
 
-    const contract =
-      await factory.deploy();
+      await contract.waitForDeployment();
 
-    await contract.waitForDeployment();
+      const address =
+        await contract.getAddress();
 
-    const address =
-      await contract.getAddress();
+      const updated = [
 
-    const updated = [
+        ...contracts,
 
-      ...contracts,
+        address
+      ];
 
-      address
-    ];
+      setContracts(updated);
 
-    setContracts(updated);
+      localStorage.setItem(
 
-    localStorage.setItem(
+        "contracts",
 
-      "contracts",
-
-      JSON.stringify(updated)
-    );
-
-    alert(
-      "DEPLOYED: " + address
-    );
-  }
-
-  async function addNote() {
-
-    const provider =
-      new ethers.BrowserProvider(
-        window.ethereum
+        JSON.stringify(updated)
       );
 
-    const signer =
-      await provider.getSigner();
-
-    const contract =
-      new ethers.Contract(
-
-        selected,
-
-        abi,
-
-        signer
+      setStatus(
+        "DEPLOYED: " + address
       );
 
-    const tx =
-      await contract.addNote(
-        note
+    } catch(err) {
+
+      console.log(err);
+
+      setStatus(
+        "ERROR: " + err.message
       );
-
-    await tx.wait();
-
-    loadNotes(selected);
-  }
-
-  async function loadNotes(
-    address
-  ) {
-
-    const provider =
-      new ethers.BrowserProvider(
-        window.ethereum
-      );
-
-    const contract =
-      new ethers.Contract(
-
-        address,
-
-        abi,
-
-        provider
-      );
-
-    const result =
-      await contract.getNotes();
-
-    setNotes(result);
-
-    setSelected(address);
+    }
   }
 
   return (
@@ -267,120 +237,38 @@ export default function Home() {
 
       </div>
 
-      <div className="mb-10">
+      <div className="bg-gray-900 p-6 rounded-xl">
 
-        <h2 className="text-3xl mb-4">
+        <p>Status:</p>
 
-          Your Contracts
+        <p className="mt-2 text-green-400">
 
-        </h2>
+          {status}
 
-        <div className="flex flex-col gap-4">
-
-          {
-
-            contracts.map(
-              (address, index) => (
-
-                <div
-
-                  key={index}
-
-                  className="bg-gray-900 p-4 rounded-xl"
-
-                >
-
-                  <p>{address}</p>
-
-                  <button
-
-                    onClick={() =>
-                      loadNotes(address)
-                    }
-
-                    className="bg-yellow-600 mt-2 px-4 py-2 rounded-xl"
-
-                  >
-
-                    Open
-
-                  </button>
-
-                </div>
-              )
-            )
-          }
-
-        </div>
+        </p>
 
       </div>
 
-      {
+      <div className="mt-10">
 
-        selected && (
+        {
 
-          <div className="bg-gray-900 p-6 rounded-2xl">
+          contracts.map(
+            (c, i) => (
 
-            <h2 className="text-3xl mb-4">
+              <div
+                key={i}
+                className="bg-gray-800 p-4 rounded-xl mt-4"
+              >
 
-              Notes
+                {c}
 
-            </h2>
+              </div>
+            )
+          )
+        }
 
-            <input
-
-              value={note}
-
-              onChange={(e) =>
-                setNote(
-                  e.target.value
-                )
-              }
-
-              placeholder="Write note..."
-
-              className="text-black p-3 rounded-xl w-full mb-4"
-            />
-
-            <button
-
-              onClick={addNote}
-
-              className="bg-red-600 px-6 py-3 rounded-xl"
-
-            >
-
-              Add Note
-
-            </button>
-
-            <div className="mt-6 flex flex-col gap-4">
-
-              {
-
-                notes.map(
-                  (n, i) => (
-
-                    <div
-
-                      key={i}
-
-                      className="bg-black p-4 rounded-xl"
-
-                    >
-
-                      {n}
-
-                    </div>
-                  )
-                )
-              }
-
-            </div>
-
-          </div>
-        )
-      }
+      </div>
 
     </main>
   );
